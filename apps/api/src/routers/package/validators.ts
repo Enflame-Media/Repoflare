@@ -89,5 +89,29 @@ export const validators = {
 				}
 			}
 		}
+	},
+	search: {
+		request: {
+			query: z.object({
+				text: z.string().min(1),
+				size: z.coerce.number().min(1).max(250).default(20),
+				from: z.coerce.number().min(0).default(0)
+			})
+		},
+		response: {
+			200: z.object({
+				objects: z.array(
+					z.object({
+						package: z.object({
+							name: z.string(),
+							version: z.string(),
+							description: z.string().optional()
+						})
+					})
+				),
+				total: z.number(),
+				time: z.string()
+			})
+		}
 	}
 };
