@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { sql } from "drizzle-orm";
+import { count, like, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { db } from "#db/index";
 import { packageReleaseTable, packageTable } from "#db/schema";
@@ -140,5 +140,31 @@ export const packageService = {
 		}
 
 		return packageTarball;
+	},
+
+	async searchPackages(query: string, size: number, from: number) {
+		const searchPattern = `%${query}%`;
+
+		const [packages, countResult] = await Promise.all([
+			db
+				.select({
+					name: packageTable.name,
+					distTags: packageTable.distTags
+				})
+				.from(packageTable)
+				.where(like(packageTable.name, searchPattern))
+				.orderBy(packageTable.name)
+				.limit(size)
+				.offset(from),
+			db
+				.select({ count: count() })
+				.from(packageTable)
+				.where(like(packageTable.name, searchPattern))
+		]);
+
+		return {
+			packages,
+			total: countResult[0]?.count ?? 0
+		};
 	}
 };
