@@ -10,6 +10,45 @@ import { validators } from "./validators";
 
 export const packageRouter = $.createApp()
 	.get(
+		"/-/v1/search",
+		describeRoute({
+			description: "Search for packages by name",
+			responses: {
+				...standardOpenApiErrorResponses,
+				200: {
+					description: "Search results",
+					content: {
+						"application/json": {
+							schema: resolver(validators.search.response[200])
+						}
+					}
+				}
+			}
+		}),
+		zValidator("query", validators.search.request.query),
+		async (c) => {
+			const can = assertTokenAccess(c.get("token"));
+			const { text, size, from } = c.req.valid("query");
+
+			const { packages, total } = await packageService.searchPackages(text, size, from);
+
+			const filteredPackages = packages.filter((pkg) => can("read", "package", pkg.name));
+
+			const objects = filteredPackages.map((pkg) => ({
+				package: {
+					name: pkg.name,
+					version: pkg.distTags.latest ?? Object.values(pkg.distTags)[0] ?? "0.0.0"
+				}
+			}));
+
+			return c.json({
+				objects,
+				total,
+				time: new Date().toISOString()
+			});
+		}
+	)
+	.get(
 		"/:packageName",
 		describeRoute({
 			description: "Get a package by it's name from the registry or the fallback registry",
